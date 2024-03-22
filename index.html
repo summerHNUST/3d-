@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D旋转球体</title>
+    <style>
+        body {
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            margin: 0;
+        }
+
+        canvas {
+            width: 500px;
+            height: 500px;
+            position: absolute;
+            
+        }
+
+        /* p {
+            font-size: 60px;
+            background: -webkit-linear-gradient(#eee, #333);
+            background: linear-gradient(#eee, #333);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-fill-color: transparent;
+        } */
+        p {
+            font-size: 60px;
+            font-weight: bold;
+            text-align: center;
+            background-image: -webkit-linear-gradient(left, 		#FF69B4, 	pink);
+            -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text;
+            -webkit-background-size: 200% 100%;
+            -webkit-animation: masked-animation 4s infinite linear;
+        }
+
+        @-webkit-keyframes masked-animation {
+            0% {
+                background-position: 0 0;
+            }
+
+            100% {
+                background-position: -100% 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="scene"></canvas>
+    <p>老安公主</p>
+    <script>
+        // 获取Canvas元素
+        const canvas = document.querySelector('#scene');
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+        const ctx = canvas.getContext('2d');
+
+        // 针对高DPI屏幕进行缩放
+        if (window.devicePixelRatio > 1) {
+            canvas.width = canvas.clientWidth * 2;
+            canvas.height = canvas.clientHeight * 2;
+            ctx.scale(2, 2);
+        }
+
+        // Canvas的宽度和高度
+        let width = canvas.clientWidth;
+        let height = canvas.clientHeight;
+        // 球体旋转的角度
+        let rotation = 0;
+        // 存储所有点的数组
+        let dots = [];
+
+        // 一些常量
+        const DOTS_AMOUNT = 1000; // 点的数量
+        const DOT_RADIUS = 2; // 点的半径
+        let GLOBE_RADIUS = width * 0.7; // 球半径
+        let GLOBE_CENTER_Z = -GLOBE_RADIUS; // 球心的Z坐标
+        let PROJECTION_CENTER_X = width / 2; // 画布HTML的X中心
+        let PROJECTION_CENTER_Y = height / 2; // 画布HTML的Y中心
+        let FIELD_OF_VIEW = width * 0.8;
+
+        // Dot类表示每个点的属性
+        class Dot {
+            constructor(x, y, z, color) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.color = color; // 添加颜色属性
+
+                this.xProject = 0;
+                this.yProject = 0;
+                this.sizeProjection = 0;
+            }
+
+            // 将三维坐标映射到二维画布上
+            project(sin, cos) {
+                const rotX = cos * this.x + sin * (this.z - GLOBE_CENTER_Z);
+                const rotZ = -sin * this.x + cos * (this.z - GLOBE_CENTER_Z) + GLOBE_CENTER_Z;
+                this.sizeProjection = FIELD_OF_VIEW / (FIELD_OF_VIEW - rotZ);
+                this.xProject = (rotX * this.sizeProjection) + PROJECTION_CENTER_X;
+                this.yProject = (this.y * this.sizeProjection) + PROJECTION_CENTER_Y;
+            }
+
+            // 在画布上绘制点
+            draw(sin, cos) {
+                this.project(sin, cos);
+                ctx.beginPath();
+                ctx.arc(this.xProject, this.yProject, DOT_RADIUS * this.sizeProjection, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; // 使用粒子的颜色属性
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        // 创建所有点的函数
+        function createDots() {
+            // 清空粒子数组
+            dots.length = 0;
+
+            // 创建一半蓝色粒子
+            for (let i = 0; i < DOTS_AMOUNT / 2; i++) {
+                const theta = Math.random() * 2 * Math.PI;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                const x = GLOBE_RADIUS * Math.sin(phi) * Math.cos(theta);
+                const y = GLOBE_RADIUS * Math.sin(phi) * Math.sin(theta);
+                const z = (GLOBE_RADIUS * Math.cos(phi)) + GLOBE_CENTER_Z;
+                dots.push(new Dot(x, y, z, '#981898'));
+            }
+
+            // 创建一半红色粒子
+            for (let i = 0; i < DOTS_AMOUNT / 2; i++) {
+                const theta = Math.random() * 2 * Math.PI;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                const x = GLOBE_RADIUS * Math.sin(phi) * Math.cos(theta);
+                const y = GLOBE_RADIUS * Math.sin(phi) * Math.sin(theta);
+                const z = (GLOBE_RADIUS * Math.cos(phi)) + GLOBE_CENTER_Z;
+                dots.push(new Dot(x, y, z, '#E71751'));
+            }
+        }
+
+        // 渲染函数，不断更新球体的旋转
+        function render(a) {
+            ctx.clearRect(0, 0, width, height);
+            rotation = a * 0.0004;
+            const sineRotation = Math.sin(rotation);
+            const cosineRotation = Math.cos(rotation);
+
+            // 遍历所有点并绘制
+            for (var i = 0; i < dots.length; i++) {
+                dots[i].draw(sineRotation, cosineRotation);
+            }
+
+            window.requestAnimationFrame(render);
+        }
+
+        // 当用户调整窗口大小时重新计算参数
+        function afterResize() {
+            width = canvas.offsetWidth;
+            height = canvas.offsetHeight;
+            if (window.devicePixelRatio > 1) {
+                canvas.width = canvas.clientWidth * 2;
+                canvas.height = canvas.clientHeight * 2;
+                ctx.scale(2, 2);
+            } else {
+                canvas.width = width;
+                canvas.height = height;
+            }
+            GLOBE_RADIUS = width * 0.7;
+            GLOBE_CENTER_Z = -GLOBE_RADIUS;
+            PROJECTION_CENTER_X = width / 2;
+            PROJECTION_CENTER_Y = height / 2;
+            FIELD_OF_VIEW = width * 0.8;
+
+            createDots(); // 重新生成所有点
+        }
+
+        // 变量用于存储用户调整窗口大小时的超时
+        let resizeTimeout;
+
+        // 当用户调整窗口大小时触发的函数
+        function onResize() {
+            resizeTimeout = window.clearTimeout(resizeTimeout);
+            resizeTimeout = window.setTimeout(afterResize, 500);
+        }
+
+        // 监听窗口大小变化事件
+        window.addEventListener('resize', onResize);
+
+        // 初始化点数组
+        createDots();
+
+        // 渲染场景
+        window.requestAnimationFrame(render);
+    </script>
+</body>
+
+</html>
